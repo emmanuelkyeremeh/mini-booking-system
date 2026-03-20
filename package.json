@@ -1,0 +1,21 @@
+{
+  "name": "mini-booking-system",
+  "version": "1.0.0",
+  "description": "Mini Booking System (Piyata challenge)",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k \"npm -w frontend run dev\" \"npm -w backend run dev\"",
+    "build": "npm -w frontend run build && npm -w backend run build",
+    "start": "npm -w backend run start"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

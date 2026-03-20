@@ -1,0 +1,14 @@
+{
+  "name": "Mini Booking System",
+  "short_name": "MiniBooking",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}
+
