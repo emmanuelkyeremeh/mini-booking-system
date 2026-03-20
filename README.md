@@ -50,7 +50,20 @@ This keeps slot math consistent and avoids off-by-one issues at boundaries.
 4. Generates candidate start times in `15`-minute steps that fully fit inside at least one availability window
 5. Filters out any candidate interval that overlaps an existing confirmed booking
 
-The response returns both `startMinute/endMinute` and `startTime/endTime` (HH:MM) for display.
+The response returns `startMinute`, `endMinute`, and a `label` (e.g. `09:00 - 10:00`) for display.
+
+### Booking calendar (month overview)
+
+`GET /api/booking-calendar?serviceId=<uuid>&month=YYYY-MM`:
+
+Returns `days[]` with `{ date, status }` where `status` is:
+
+- `past` — before today
+- `none` — no availability window that day
+- `full` — windows exist but every slot is taken
+- `available` — at least one bookable slot remains
+
+The consumer UI uses this for an inline month calendar (green / grey / muted days) instead of a full-screen date popover.
 
 ### Booking conflict checks
 
@@ -109,6 +122,14 @@ Frontend (`frontend/.env.example`):
 
 ```bash
 node backend/scripts/setup-db.js
+```
+
+### Reset demo data (optional)
+
+Services, availability, and bookings are created by using the app (there is no “consumer-created service”). To wipe those tables and keep user accounts:
+
+```bash
+cd backend && npm run clear-demo
 ```
 
 4. Run the app:

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { createAvailability, createService, listBookings } from "../../api/miniBookingApi.js";
+import DatePicker from "react-datepicker";
+import { createAvailability, createService, listBookings, listServices } from "../../api/miniBookingApi.js";
+import { useAuth } from "../../auth/authContext.js";
 
 function minutesToHHMM(minute) {
   const hh = Math.floor(minute / 60);
@@ -7,10 +9,27 @@ function minutesToHHMM(minute) {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
-function todayPlusOne() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+function formatLocalDateYYYYMMDD(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function normalizeDayKey(date) {
+  // Normalize to local midnight so day-matching works even if Date instances differ.
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return d.getTime();
+}
+
+function uniqueSortedDays(dates) {
+  const map = new Map();
+  for (const d of dates || []) {
+    map.set(normalizeDayKey(d), d);
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => normalizeDayKey(a) - normalizeDayKey(b),
+  );
 }
 
 function timeToMinutes(value) {
@@ -19,13 +38,19 @@ function timeToMinutes(value) {
 }
 
 export default function BusinessDashboardPage() {
+  const { user } = useAuth();
+
   const [serviceName, setServiceName] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [serviceLoading, setServiceLoading] = useState(false);
   const [serviceError, setServiceError] = useState(null);
   const [serviceSuccess, setServiceSuccess] = useState(null);
 
-  const [bookingDate, setBookingDate] = useState(todayPlusOne());
+  const [myServices, setMyServices] = useState([]);
+  const [myServicesLoading, setMyServicesLoading] = useState(false);
+  const [myServicesError, setMyServicesError] = useState(null);
+
+  const [bookingDates, setBookingDates] = useState([]);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("17:00");
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -64,6 +89,35 @@ export default function BusinessDashboardPage() {
     };
   }, [page, limit]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMyServices() {
+      if (!user?.id) return;
+      setMyServicesLoading(true);
+      setMyServicesError(null);
+      try {
+        const data = await listServices();
+        if (cancelled) return;
+        const mine = (data.services || []).filter((s) => s.businessId === user.id);
+        setMyServices(mine);
+      } catch (err) {
+        if (cancelled) return;
+        setMyServicesError(err?.message || "Failed to load services");
+        setMyServices([]);
+      } finally {
+        if (!cancelled) setMyServicesLoading(false);
+      }
+    }
+
+    loadMyServices();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const hasServices = myServices.length > 0;
+
   async function onCreateService(e) {
     e.preventDefault();
     setServiceLoading(true);
@@ -73,6 +127,16 @@ export default function BusinessDashboardPage() {
       await createService({ name: serviceName, durationMinutes: Number(durationMinutes) });
       setServiceSuccess("Service created.");
       setServiceName("");
+
+      if (user?.id) {
+        try {
+          const data = await listServices();
+          const mine = (data.services || []).filter((s) => s.businessId === user.id);
+          setMyServices(mine);
+        } catch {
+          // Non-fatal: backend rule will still enforce availability creation.
+        }
+      }
     } catch (err) {
       setServiceError(err?.message || "Failed to create service");
     } finally {
@@ -86,12 +150,42 @@ export default function BusinessDashboardPage() {
     setAvailabilityError(null);
     setAvailabilitySuccess(null);
     try {
+      if (myServicesLoading) {
+        setAvailabilityError("Loading services, try again in a moment.");
+        return;
+      }
+      if (!hasServices) {
+        setAvailabilityError("Create a service before adding availability.");
+        return;
+      }
+      if (!bookingDates?.length) {
+        setAvailabilityError("Please choose at least one date.");
+        return;
+      }
       const startMinute = timeToMinutes(startTime);
       const endMinute = timeToMinutes(endTime);
-      await createAvailability({ bookingDate, startMinute, endMinute });
+      if (endMinute <= startMinute) {
+        setAvailabilityError("End time must be after start time.");
+        return;
+      }
+
+      // Save one availability row per selected date.
+      for (const d of bookingDates) {
+        await createAvailability({
+          bookingDate: formatLocalDateYYYYMMDD(d),
+          startMinute,
+          endMinute,
+        });
+      }
       setAvailabilitySuccess("Availability saved.");
+      setBookingDates([]);
     } catch (err) {
-      setAvailabilityError(err?.message || "Failed to save availability");
+      const code = err?.details?.error || err?.status;
+      if (code === "service_required") {
+        setAvailabilityError("Create a service before adding availability.");
+      } else {
+        setAvailabilityError(err?.message || "Failed to save availability");
+      }
     } finally {
       setAvailabilityLoading(false);
     }
@@ -110,13 +204,25 @@ export default function BusinessDashboardPage() {
 
           <label className="field">
             <span className="label">Duration (minutes)</span>
-            <input
-              className="input"
-              type="number"
-              value={durationMinutes}
-              onChange={(e) => setDurationMinutes(e.target.value)}
-              required
-            />
+            <div className="durationControl" role="group" aria-label="Duration minutes">
+              <button
+                type="button"
+                className="durationBtn"
+                onClick={() => setDurationMinutes((v) => Math.max(15, Number(v) - 15))}
+                aria-label="Decrease duration"
+              >
+                -
+              </button>
+              <input className="input durationInput" value={durationMinutes} readOnly aria-label="Duration value" />
+              <button
+                type="button"
+                className="durationBtn"
+                onClick={() => setDurationMinutes((v) => Math.min(240, Number(v) + 15))}
+                aria-label="Increase duration"
+              >
+                +
+              </button>
+            </div>
           </label>
 
           {serviceError ? <div className="alert alertError">{serviceError}</div> : null}
@@ -132,17 +238,6 @@ export default function BusinessDashboardPage() {
         <h2 className="sectionTitle">Add availability</h2>
 
         <form onSubmit={onCreateAvailability} className="formGrid">
-          <label className="field">
-            <span className="label">Date</span>
-            <input
-              className="input"
-              type="date"
-              value={bookingDate}
-              onChange={(e) => setBookingDate(e.target.value)}
-              required
-            />
-          </label>
-
           <div className="formGrid formGridTwo">
             <label className="field">
               <span className="label">Start time</span>
@@ -169,10 +264,49 @@ export default function BusinessDashboardPage() {
             </label>
           </div>
 
+          <div className="field" style={{ marginTop: 6 }}>
+            <span className="label">Select dates (multiple)</span>
+            <div className="businessCalWrap">
+              <DatePicker
+                inline
+                calendarClassName="businessCal"
+                selectsMultiple
+                selectedDates={bookingDates}
+                onChange={(dates) => {
+                  const rawDates = dates
+                    ? Array.isArray(dates)
+                      ? dates
+                      : [dates]
+                    : [];
+                  const nextDates = uniqueSortedDays(rawDates);
+
+                  const currKeys = uniqueSortedDays(bookingDates).map(normalizeDayKey);
+                  const nextKeys = nextDates.map(normalizeDayKey);
+
+                  const same =
+                    currKeys.length === nextKeys.length &&
+                    currKeys.every((k, idx) => k === nextKeys[idx]);
+
+                  if (!same) setBookingDates(nextDates);
+                }}
+                minDate={new Date()}
+                dateFormat="dd/MM/yyyy"
+                disabled={!hasServices || myServicesLoading}
+              />
+            </div>
+          </div>
+
+          {!hasServices && !myServicesLoading ? (
+            <p className="muted" style={{ marginTop: 6 }}>
+              Create a service first to unlock availability.
+            </p>
+          ) : null}
+          {myServicesError ? <div className="alert alertError">{myServicesError}</div> : null}
+
           {availabilityError ? <div className="alert alertError">{availabilityError}</div> : null}
           {availabilitySuccess ? <div className="alert alertOk">{availabilitySuccess}</div> : null}
 
-          <button className="btn btnPrimary" disabled={availabilityLoading}>
+          <button className="btn btnPrimary" disabled={availabilityLoading || !hasServices}>
             {availabilityLoading ? "Saving…" : "Save availability"}
           </button>
         </form>

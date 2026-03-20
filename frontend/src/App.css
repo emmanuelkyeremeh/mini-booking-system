@@ -54,6 +54,11 @@
   opacity: 0.75;
 }
 
+.userEmail {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
 /* Cards */
 .card {
   background: rgba(255, 255, 255, 0.9);
@@ -268,8 +273,38 @@
 }
 
 .authLayout {
-  max-width: 520px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 560px;
+}
+
+.authPage {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  /* #root has padding; cancel it so auth cards truly center in the viewport */
+  margin: calc(-1 * var(--space-4));
+  min-height: 100svh;
+  box-sizing: content-box;
+}
+
+.authCard {
+  padding: var(--space-6);
+}
+
+.fieldError {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: rgba(239, 68, 68, 0.95);
+}
+
+.inputError {
+  border-color: rgba(239, 68, 68, 0.55) !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12) !important;
 }
 
 .btnRow {
@@ -438,6 +473,212 @@
   @media (max-width: 1024px) {
     height: 48px;
   }
+}
+
+/* Inline booking calendar (consumer) — compact, dark-friendly */
+.bookingCalWrap {
+  margin-top: var(--space-3);
+  max-width: 360px;
+}
+
+.bookingCal.react-datepicker {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  font-family: inherit;
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bookingCal.react-datepicker {
+    background: rgba(18, 19, 26, 0.96);
+    color: var(--text-h);
+  }
+}
+
+.bookingCal .react-datepicker__month-container {
+  width: 100%;
+}
+
+.bookingCal .react-datepicker__header {
+  background: rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (prefers-color-scheme: dark) {
+  .bookingCal .react-datepicker__header {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.bookingCal .react-datepicker__current-month,
+.bookingCal .react-datepicker__day-name {
+  color: inherit;
+}
+
+.bookingCal .react-datepicker__day {
+  border-radius: 8px;
+  line-height: 1.8rem;
+}
+
+.bookingCal .react-datepicker__day--outside-month {
+  opacity: 0.35;
+}
+
+.bookingCal .react-datepicker__day--disabled {
+  opacity: 0.4;
+}
+
+.bookingCal .react-datepicker__day.booking-cal-day--available {
+  background: #22c55e !important;
+  color: #052e14 !important;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bookingCal .react-datepicker__day.booking-cal-day--available.react-datepicker__day--selected {
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.55);
+}
+
+.bookingCal .react-datepicker__day.booking-cal-day--full {
+  background: rgba(82, 82, 91, 0.95) !important;
+  color: #fafafa !important;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bookingCal .react-datepicker__day.booking-cal-day--none {
+  background: transparent !important;
+  color: rgba(100, 100, 115, 0.95) !important;
+}
+
+.bookingCal .react-datepicker__day.booking-cal-day--past {
+  color: rgba(120, 120, 130, 0.45) !important;
+}
+
+.bookingCalLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  font-size: 13px;
+  align-items: center;
+}
+
+.bookingCalLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bookingCalSwatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bookingCalSwatch--available {
+  background: #22c55e;
+  border-color: #15803d;
+}
+
+.bookingCalSwatch--full {
+  background: rgba(82, 82, 91, 0.95);
+}
+
+.bookingCalSwatch--none {
+  background: transparent;
+}
+
+/* Inline business availability picker — multi-date, dark-friendly */
+.businessCalWrap {
+  margin-top: var(--space-3);
+  max-width: 420px;
+}
+
+.businessCal.react-datepicker {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(18, 19, 26, 0.96);
+  font-family: inherit;
+  box-shadow: none;
+  color: var(--text-h);
+}
+
+.businessCal .react-datepicker__header {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
+}
+
+.businessCal .react-datepicker__current-month,
+.businessCal .react-datepicker__day-name {
+  color: inherit;
+}
+
+.businessCal .react-datepicker__day {
+  border-radius: 8px;
+  line-height: 1.8rem;
+  color: var(--text-h) !important;
+  background: transparent;
+}
+
+.businessCal .react-datepicker__day--outside-month {
+  opacity: 0.35;
+  color: rgba(220, 220, 232, 0.55) !important;
+}
+
+.businessCal .react-datepicker__day--disabled {
+  opacity: 0.4;
+  color: rgba(220, 220, 232, 0.35) !important;
+  background: transparent !important;
+}
+
+.businessCal .react-datepicker__day--selected {
+  background: rgba(192, 132, 252, 0.55) !important;
+  color: #0b0b11 !important;
+  border: 1px solid rgba(192, 132, 252, 0.95) !important;
+  font-weight: 900;
+}
+
+.businessCal .react-datepicker__day:hover {
+  color: #000 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Duration control — replace ugly numeric spinner */
+.durationControl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.durationBtn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-h);
+  cursor: pointer;
+  font-weight: 800;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.durationBtn:hover {
+  transform: translateY(-1px);
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.durationInput {
+  width: 110px;
+  text-align: center;
+  padding: 10px 12px;
 }
 
 .ticks {

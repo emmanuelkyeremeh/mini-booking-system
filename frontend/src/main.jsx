@@ -5,6 +5,7 @@ import './index.css'
 import "./app.css";
 import App from './App.jsx'
 import { AuthProvider } from "./auth/AuthProvider.jsx";
+import "react-datepicker/dist/react-datepicker.css";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

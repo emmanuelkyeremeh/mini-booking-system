@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { getDbPool } from "../db/pool.js";
+import { computeSlotStartsForDay } from "../lib/slotEngine.js";
 
 const router = Router();
 
@@ -9,16 +10,10 @@ const QuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
-function minutesToHHMM(minute) {
-  const m = Math.max(0, Math.min(1440, minute));
-  const hh = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-}
-
-function intervalsOverlap(aStart, aEnd, bStart, bEnd) {
-  // Treat as [start, end) half-open intervals.
-  return !(aEnd <= bStart || aStart >= bEnd);
+function minutesToHHMM(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 router.get("/slots", async (req, res) => {
@@ -31,11 +26,7 @@ router.get("/slots", async (req, res) => {
   const pool = getDbPool();
 
   const serviceResult = await pool.query(
-    `
-    SELECT id, business_id, duration_minutes
-    FROM services
-    WHERE id = $1;
-    `,
+    `SELECT id, business_id, duration_minutes FROM services WHERE id = $1;`,
     [serviceId],
   );
   const service = serviceResult.rows[0];
@@ -50,67 +41,36 @@ router.get("/slots", async (req, res) => {
     `
     SELECT start_minute, end_minute
     FROM availability_windows
-    WHERE business_id = $1 AND booking_date = $2
-    ORDER BY start_minute ASC;
+    WHERE business_id = $1 AND booking_date = $2::date
+    ORDER BY start_minute;
     `,
     [businessId, date],
   );
-  const windows = windowsResult.rows;
-
-  if (windows.length === 0) {
-    return res.status(200).json({ slots: [] });
-  }
 
   const bookingsResult = await pool.query(
     `
     SELECT start_minute, end_minute
     FROM bookings
     WHERE business_id = $1
-      AND booking_date = $2
-      AND status = 'confirmed';
+      AND booking_date = $2::date
+      AND status = 'confirmed'
+    ORDER BY start_minute;
     `,
     [businessId, date],
   );
-  const existing = bookingsResult.rows;
 
-  const step = 15;
-  const slotsSet = new Set();
+  const windows = windowsResult.rows;
+  const existingBookings = bookingsResult.rows;
 
-  for (const w of windows) {
-    const windowStart = w.start_minute;
-    const windowEnd = w.end_minute;
-    // Candidate interval must fit inside the window.
-    const maxStart = windowEnd - duration;
-    if (maxStart < windowStart) continue;
+  const starts = computeSlotStartsForDay({ duration, windows, existingBookings });
 
-    // Snap first candidate to 15-min step.
-    const first = windowStart + ((step - (windowStart % step)) % step);
+  const slots = starts.map((start) => ({
+    startMinute: start,
+    endMinute: start + duration,
+    label: `${minutesToHHMM(start)} - ${minutesToHHMM(start + duration)}`,
+  }));
 
-    for (let start = first; start <= maxStart; start += step) {
-      const end = start + duration;
-      let overlaps = false;
-      for (const b of existing) {
-        if (intervalsOverlap(start, end, b.start_minute, b.end_minute)) {
-          overlaps = true;
-          break;
-        }
-      }
-      if (!overlaps) {
-        slotsSet.add(start);
-      }
-    }
-  }
-
-  const slots = Array.from(slotsSet)
-    .sort((a, b) => a - b)
-    .map((startMinute) => ({
-      startMinute,
-      startTime: minutesToHHMM(startMinute),
-      endTime: minutesToHHMM(startMinute + duration),
-    }));
-
-  return res.status(200).json({ slots });
+  return res.status(200).json({ date, slots });
 });
 
 export default router;
-

@@ -40,6 +40,15 @@ router.post("/availability", requireAuth, async (req, res) => {
 
   const pool = getDbPool();
   try {
+    // Product rule: business must create at least one service before adding availability.
+    const serviceCheck = await pool.query(
+      `SELECT 1 FROM services WHERE business_id = $1 LIMIT 1;`,
+      [req.user.id],
+    );
+    if (serviceCheck.rowCount === 0) {
+      return res.status(400).json({ error: "service_required" });
+    }
+
     const result = await pool.query(
       `
       INSERT INTO availability_windows (business_id, booking_date, start_minute, end_minute)

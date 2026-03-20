@@ -49,15 +49,22 @@ router.get("/services", async (_req, res) => {
   try {
     const result = await pool.query(
       `
-      SELECT id, business_id, name, duration_minutes
-      FROM services
-      ORDER BY created_at DESC;
+      SELECT DISTINCT ON (s.business_id, s.name, s.duration_minutes)
+        s.id,
+        s.business_id,
+        u.email AS business_email,
+        s.name,
+        s.duration_minutes
+      FROM services s
+      JOIN users u ON u.id = s.business_id
+      ORDER BY s.business_id, s.name, s.duration_minutes, s.created_at DESC;
       `,
     );
 
     const services = result.rows.map((s) => ({
       id: s.id,
       businessId: s.business_id,
+      businessEmail: s.business_email,
       name: s.name,
       durationMinutes: s.duration_minutes,
     }));

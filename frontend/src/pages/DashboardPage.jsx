@@ -19,7 +19,7 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span style={{ fontFamily: "ui-monospace, Consolas, monospace" }}>{user.email}</span>
+          <span className="userEmail">{user.email}</span>
           <button className="btn btnDanger" onClick={logout}>
             Log out
           </button>

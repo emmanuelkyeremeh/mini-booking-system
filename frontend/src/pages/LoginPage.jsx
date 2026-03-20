@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/authContext.js";
+import {
+  serverIssuesToFieldErrors,
+  serverPayloadToFormError,
+  validateEmail,
+  validatePassword,
+} from "../auth/formValidation.js";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,25 +15,49 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({ email: null, password: null });
 
   async function onSubmit(e) {
     e.preventDefault();
-    setError(null);
+
+    setFormError(null);
+    setFieldErrors({ email: null, password: null });
+
+    const nextFieldErrors = {
+      email: validateEmail(email),
+      password: validatePassword(password, { minLength: 1 }),
+    };
+
+    if (nextFieldErrors.email || nextFieldErrors.password) {
+      setFieldErrors(nextFieldErrors);
+      return;
+    }
+
     setLoading(true);
     try {
       await login({ email, password });
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.details?.error || err?.message || "Login failed");
+      const payload = err?.details;
+
+      if (payload?.error === "invalid_request" && Array.isArray(payload.details)) {
+        setFieldErrors(serverIssuesToFieldErrors(payload.details));
+        setFormError(null);
+        return;
+      }
+
+      setFieldErrors({ email: null, password: null });
+      setFormError(serverPayloadToFormError(payload) || err?.message || "Login failed");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="authLayout">
-      <div className="card">
+    <div className="authPage">
+      <div className="authLayout">
+        <div className="card authCard">
         <div className="brand" style={{ marginBottom: 18 }}>
           <img className="brandMark" src="/logo.svg" alt="" />
           <div className="brandTitle">
@@ -41,26 +71,36 @@ export default function LoginPage() {
           <label className="field">
             <span className="label">Email</span>
             <input
-              className="input"
+              className={`input ${fieldErrors.email ? "inputError" : ""}`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
               required
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
             />
+            {fieldErrors.email ? <div id="login-email-error" className="fieldError">{fieldErrors.email}</div> : null}
           </label>
 
           <label className="field">
             <span className="label">Password</span>
             <input
-              className="input"
+              className={`input ${fieldErrors.password ? "inputError" : ""}`}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
               required
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
             />
+            {fieldErrors.password ? (
+              <div id="login-password-error" className="fieldError">
+                {fieldErrors.password}
+              </div>
+            ) : null}
           </label>
 
-          {error ? <div className="alert alertError">{error}</div> : null}
+          {formError ? <div className="alert alertError">{formError}</div> : null}
 
           <button className="btn btnPrimary" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
@@ -70,6 +110,7 @@ export default function LoginPage() {
         <p style={{ marginTop: 18 }}>
           No account? <Link to="/register">Register</Link>
         </p>
+        </div>
       </div>
     </div>
   );

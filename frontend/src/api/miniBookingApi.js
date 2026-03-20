@@ -9,6 +9,11 @@ export function getSlots({ serviceId, date }) {
   return apiFetch(`/api/slots?${qs}`, { method: "GET" });
 }
 
+export function getBookingCalendar({ serviceId, month }) {
+  const qs = new URLSearchParams({ serviceId, month }).toString();
+  return apiFetch(`/api/booking-calendar?${qs}`, { method: "GET" });
+}
+
 export function createBooking({ serviceId, bookingDate, startMinute }) {
   return apiFetch("/api/bookings", {
     method: "POST",

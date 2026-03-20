@@ -7,6 +7,7 @@ import authRouter from "./routes/auth.js";
 import servicesRouter from "./routes/services.js";
 import availabilityRouter from "./routes/availability.js";
 import slotsRouter from "./routes/slots.js";
+import bookingCalendarRouter from "./routes/bookingCalendar.js";
 import bookingsRouter from "./routes/bookings.js";
 
 export function createApp() {
@@ -32,6 +33,7 @@ export function createApp() {
   app.use("/api", servicesRouter);
   app.use("/api", availabilityRouter);
   app.use("/api", slotsRouter);
+  app.use("/api", bookingCalendarRouter);
   app.use("/api", bookingsRouter);
 
   // 404 handler
